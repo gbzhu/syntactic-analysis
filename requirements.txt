@@ -1,0 +1,4 @@
+# for request
+Flask==1.1.2
+requests==2.25.1
+spacy==2.3.1

@@ -1,0 +1,7 @@
+---
+applications:
+  - name: epd-syntactic-analysis-srv
+    host: epd-syntactic-analysis
+    memory: 1024M
+    timeout: 120
+    buildpack: python_buildpack
