@@ -240,7 +240,7 @@ def get_R1_is_complete(doc):
             headtoken = token
     if headtoken:
         return any('subj' in token.dep_ for token in headtoken.subtree) \
-        and any('obj' in token.dep_ for token in headtoken.subtree)
+            and any('obj' in token.dep_ for token in headtoken.subtree)
     else:
         #       'no ROOT found'
         return False
