@@ -5,9 +5,64 @@ from spacy.tokens import Doc, Token, Span
 from spacy.pipeline import EntityRuler
 # from spacy.strings import StringStore
 import os
-from flask import Flask, globals, Response, request
+from flask import Flask, globals, Response, request, g
+
+# for uaa
+from cfenv import AppEnv
+# from flask import Flask, g, request, Response
+from sap import xssec
+from functools import wraps
+import requests
+# import json
+
 
 app = Flask(__name__)
+env = AppEnv()
+uaaCredentials = env.get_service(label='xsuaa').credentials
+
+
+@app.before_request
+def before_request():
+    g._uaaCredentials = uaaCredentials
+
+
+def validatejwt(encodedJwtToken):
+    """JWT offline validation"""
+    xs_security = getattr(g, '_sap_xssec', None)
+    if xs_security is None:
+        xs_security = xssec.create_security_context(
+            encodedJwtToken, g._uaaCredentials)
+    if xs_security.get_grant_type is None:
+        return False
+    g._sap_xssec = xs_security
+    return True
+
+
+def checktoken():
+    """check JWT"""
+    authHeader = request.headers.get('Authorization')
+    if authHeader is None:
+        return False
+    encodedJwtToken = authHeader.replace('Bearer ', '').strip()
+    if encodedJwtToken == '':
+        return False
+    return validatejwt(encodedJwtToken)
+
+
+def sendauth():
+    """Sends a 403 response"""
+    return Response('Unauthorized', 403)
+
+
+def authenticated(func):
+    """ JWT token check decorator """
+
+    @wraps(func)
+    def decorated(*args, **kwargs):
+        if not checktoken():
+            return sendauth()
+        return func(*args, **kwargs)
+    return decorated
 
 
 class ClausesComponent(object):
@@ -225,8 +280,8 @@ class CombinatorComponent(object):
 # Validate input data is JSON
 def is_json(data):
     try:
-        json_object = json.loads(data)
-    except ValueError as e:
+        json.loads(data)
+    except ValueError:
         return False
     return True
 
@@ -1199,6 +1254,7 @@ def validate(texts):
 
 # Client POST request received
 @app.route('/', methods=['POST', 'GET'])
+@authenticated
 def main():
     error_message = "error"
     success = False
